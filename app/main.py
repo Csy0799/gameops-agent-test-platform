@@ -3,6 +3,7 @@ from typing import Any, Optional
 from fastapi import FastAPI
 
 from app.api.activity import router as activity_router
+from app.api.reward import router as reward_router
 from app.core.config import get_settings
 from app.core.exceptions import register_exception_handlers
 from app.core.logger import get_logger
@@ -32,6 +33,7 @@ def create_app() -> FastAPI:
         return success_response({"status": "ok"})
 
     app.include_router(activity_router)
+    app.include_router(reward_router)
 
     return app
 
