@@ -9,8 +9,9 @@
 - Day 1：FastAPI 基础服务、健康检查、统一响应结构和基础测试。
 - Day 2：活动配置 API，支持创建、查询、列表、发布和回滚。
 - Day 3：奖励领取、用户钱包、奖励流水、幂等校验和 daily limit 校验。
+- Day 4：掉落概率规则校验、Monte Carlo 模拟和保底规则提示。
 
-暂未实现 Agent、概率校验、JMeter、Docker、CI 等后续功能。
+暂未实现 Agent、JMeter、Docker、CI 等后续功能。
 
 ## 技术栈
 
@@ -169,3 +170,63 @@ curl -X POST http://127.0.0.1:8000/api/rewards/claim \
 - 设计并实现基于 FastAPI + SQLAlchemy 的游戏运营活动配置与奖励领取后端服务，覆盖活动发布、回滚、钱包发奖、奖池扣减和奖励流水追踪。
 - 引入 `idempotency_key` 幂等机制，防止客户端重试导致重复发奖，并通过 pytest 验证重复请求下钱包与奖池金额保持一致。
 - 构建接口级自动化测试，覆盖活动配置校验、状态流转、奖励领取限制、异常路径和 Windows 下 SQLite 测试数据库隔离问题。
+
+## 概率校验模块
+
+Day 4 新增游戏掉落概率校验工具，用于发现活动配置中的掉率边界错误、模拟偏差风险和保底规则缺失问题。该模块不依赖数据库，也不修改活动或奖励领取链路。
+
+校验能力：
+
+- `probability` 必须在 `[0, 1]` 范围内。
+- `sample_size` 必须大于 0。
+- `tolerance` 必须大于 0。
+- `pity_threshold` 如果存在，必须大于 0。
+- 低概率且没有保底阈值时返回 warning。
+- `probability=0` 且配置了保底阈值时返回 warning，提示保底是唯一获得途径，需要重点审核。
+
+### Monte Carlo 模拟说明
+
+接口会根据传入的 `probability`、`sample_size` 和 `seed` 进行 Monte Carlo 模拟，返回实际掉率、期望掉率、偏差值和是否通过容忍度检查。
+
+固定 `seed` 用于保证自动化测试和本地复现稳定。`probability=0` 时实际掉率固定为 `0`，`probability=1` 时实际掉率固定为 `1`。
+
+### Day 4 API
+
+- `POST /api/tools/probability/validate`：校验掉落概率配置并返回模拟结果
+
+概率校验示例：
+
+```bash
+curl -X POST http://127.0.0.1:8000/api/tools/probability/validate \
+  -H "Content-Type: application/json" \
+  -d '{
+    "probability": 0.2,
+    "sample_size": 100000,
+    "tolerance": 0.01,
+    "seed": 42,
+    "pity_threshold": 20
+  }'
+```
+
+返回示例：
+
+```json
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "expected_probability": 0.2,
+    "actual_probability": 0.20156,
+    "deviation": 0.00156,
+    "sample_size": 100000,
+    "tolerance": 0.01,
+    "pass": true,
+    "warnings": []
+  }
+}
+```
+
+## 简历 Bullet 补充
+
+- 实现游戏掉落概率校验工具，结合规则校验与 Monte Carlo 模拟输出结构化结果，覆盖掉率边界、样本量、容忍度和保底阈值风险。
+- 使用固定随机种子保证概率模拟测试可复现，并通过 pytest 覆盖边界概率、低概率 warning、保底规则和 API 统一响应。
