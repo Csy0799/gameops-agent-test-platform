@@ -1,0 +1,9 @@
+services:
+  app:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - LLM_PROVIDER=fake
+      - ENABLE_OPERATION_LOG=true
+      - OPERATION_LOG_RETENTION_DAYS=365

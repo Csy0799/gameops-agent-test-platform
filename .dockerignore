@@ -1,0 +1,14 @@
+.venv
+venv
+__pycache__
+.pytest_cache
+htmlcov
+.coverage
+reports/allure-results
+reports/allure-report
+reports/jmeter
+gameops.db
+test_gameops.db
+*.pyc
+.git
+.gitignore

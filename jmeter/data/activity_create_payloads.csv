@@ -1,0 +1,4 @@
+name,start_time,end_time,reward_pool_gold,reward_pool_diamond,drop_item_id,drop_probability,daily_limit,pity_threshold,risk_level
+load_event_001,2026-06-01T00:00:00,2026-06-08T00:00:00,100000,0,rare_box,0.2,3,50,medium
+load_event_002,2026-06-01T00:00:00,2026-06-08T00:00:00,200000,0,rare_box,0.3,5,30,medium
+load_event_003,2026-06-01T00:00:00,2026-06-08T00:00:00,500000,1000,diamond_box,0.1,2,80,high

@@ -64,6 +64,7 @@ db.sqlite3-journal
 gameops.db
 test_gameops.db
 *.sqlite3
+.DS_Store
 
 # Flask stuff:
 instance/
@@ -225,5 +226,8 @@ __marimo__/
 # Allure reports
 reports/allure-results/
 reports/allure-report/
-reports/jmeter/
+reports/jmeter/*
+!reports/jmeter/
+!reports/jmeter/.gitkeep
 *.jtl
+*.log
