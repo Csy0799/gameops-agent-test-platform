@@ -10,6 +10,7 @@
 - Day 2：活动配置 API，支持创建、查询、列表、发布和回滚。
 - Day 3：奖励领取、用户钱包、奖励流水、幂等校验和 daily limit 校验。
 - Day 4：掉落概率规则校验、Monte Carlo 模拟和保底规则提示。
+- Day 5：Agent 工作流、LLM Provider 架构、风险拦截和人工审核。
 
 暂未实现 Agent、JMeter、Docker、CI 等后续功能。
 
@@ -230,3 +231,104 @@ curl -X POST http://127.0.0.1:8000/api/tools/probability/validate \
 
 - 实现游戏掉落概率校验工具，结合规则校验与 Monte Carlo 模拟输出结构化结果，覆盖掉率边界、样本量、容忍度和保底阈值风险。
 - 使用固定随机种子保证概率模拟测试可复现，并通过 pytest 覆盖边界概率、低概率 warning、保底规则和 API 统一响应。
+
+## Agent 工作流模块
+
+Day 5 新增 Agent 工作流，用于把运营自然语言需求转成活动配置草稿，并串联规则校验、概率模拟、预算风控、危险指令拦截和 Human-in-the-loop 人工审核。
+
+工作流不会自动发布活动。低/中风险需求会创建 `draft` 活动，高风险需求进入 `pending_review`，危险指令会直接 `rejected`。
+
+```mermaid
+flowchart TD
+    A[User Requirement] --> B[Guardrail Check]
+    B -->|Dangerous| R[Rejected]
+    B -->|Safe| C[LLM Provider Generate Config]
+    C --> D[Rule Validation]
+    D --> E[Probability Simulation]
+    E --> F[Risk Check]
+    F -->|Low/Medium Risk| G[Create Draft Activity]
+    F -->|High Risk| H[Human Review]
+    H -->|Approve| G
+    H -->|Reject| I[Rejected]
+```
+
+### LLM Provider 架构
+
+Agent 依赖 `BaseLLMProvider` 抽象，而不是直接依赖 FakeLLM。
+
+默认模式：
+
+```bash
+LLM_PROVIDER=fake
+```
+
+可选真实 LLM 模式：
+
+```bash
+LLM_PROVIDER=openai
+LLM_API_KEY=your_api_key
+LLM_BASE_URL=https://api.openai.com/v1
+LLM_MODEL=gpt-4o-mini
+```
+
+当前项目测试环境永远使用 `FakeLLMProvider`，避免测试依赖网络和 API Key。`OpenAICompatibleProvider` 作为工程扩展点保留，用于展示项目具备接入真实模型的能力；如果缺少 `LLM_API_KEY`，会抛出清晰错误。
+
+### FakeLLMProvider 设计
+
+`FakeLLMProvider` 不调用外部 API，输出稳定，便于 pytest 验证。它会根据关键词生成活动配置，例如：
+
+- “周末世界Boss / 世界BOSS”生成 `weekend_boss_event`。
+- “金币预算1000000”生成金币奖池。
+- “掉落概率20% / 掉率20%”生成 `drop_probability=0.2`。
+- “每天最多领取3次”生成 `daily_limit=3`。
+- 高预算、高掉率或钻石奖励会标记为 `risk_level=high`。
+
+### Guardrail 危险指令拦截
+
+以下危险词会直接 rejected，不进入配置生成：
+
+- 中文：`直接执行SQL`、`执行SQL`、`绕过审核`、`无限奖励`、`删除数据库`
+- 英文：`drop table`、`bypass review`、`unlimited reward`、`delete database`
+
+### Human-in-the-loop 人工审核
+
+以下情况进入 `pending_review`：
+
+- `risk_level=high`
+- `reward_pool_gold > 1000000`
+- `drop_probability > 0.5`
+- `reward_pool_diamond > 0`
+- 概率模拟未通过 tolerance
+
+pending review 会保存在内存 review store 中。`approve` 后创建 `draft` 活动，`reject` 后不创建活动。当前阶段不持久化 review store，pytest 会自动清理，避免测试污染。
+
+### Day 5 API
+
+- `POST /api/agent/generate_activity`：从自然语言需求生成活动草稿或进入审核
+- `POST /api/agent/review/{review_id}`：人工审核 approve / reject
+
+生成活动示例：
+
+```bash
+curl -X POST http://127.0.0.1:8000/api/agent/generate_activity \
+  -H "Content-Type: application/json" \
+  -d '{
+    "requirement": "创建一个周末世界Boss活动，掉落概率20%，每人每天最多领取3次，总金币预算1000000"
+  }'
+```
+
+审核示例：
+
+```bash
+curl -X POST http://127.0.0.1:8000/api/agent/review/review_xxx \
+  -H "Content-Type: application/json" \
+  -d '{
+    "action": "approve"
+  }'
+```
+
+## 简历 Bullet 补充 2
+
+- 设计可扩展 LLM Provider 架构，默认使用 FakeLLM 保证测试稳定，同时预留 OpenAI-compatible Provider 作为真实模型接入扩展点。
+- 实现运营活动 Agent 工作流，将自然语言需求转成活动配置，并串联规则校验、概率模拟、预算风控、危险指令拦截与人工审核。
+- 构建 Human-in-the-loop 审核机制，高风险配置进入 pending review，人工 approve 后才创建 draft 活动，避免高风险活动自动落库。

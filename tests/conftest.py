@@ -9,6 +9,14 @@ from sqlalchemy.pool import StaticPool
 from app.db.models import Base
 from app.db.session import get_db
 from app.main import app
+from app.agent.human_review import clear_reviews
+
+
+@pytest.fixture(autouse=True)
+def clear_agent_review_store() -> Generator[None, None, None]:
+    clear_reviews()
+    yield
+    clear_reviews()
 
 
 @pytest.fixture()
