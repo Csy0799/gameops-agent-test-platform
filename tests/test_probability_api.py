@@ -1,3 +1,13 @@
+import allure
+import pytest
+
+pytestmark = [
+    pytest.mark.api,
+    allure.feature("Probability Validation"),
+    allure.story("Probability API"),
+]
+
+
 def test_probability_validate_api_returns_unified_response(client):
     response = client.post(
         "/api/tools/probability/validate",

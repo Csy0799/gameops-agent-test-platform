@@ -1,7 +1,15 @@
+import allure
+import pytest
 from datetime import datetime, timedelta
 
 from app.db.models import OperationLog
 from app.services import operation_log_service
+
+pytestmark = [
+    pytest.mark.unit,
+    allure.feature("Operation Log"),
+    allure.story("Operation log service"),
+]
 
 
 def test_log_operation_writes_operation_log(db_session):

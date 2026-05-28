@@ -1,6 +1,15 @@
+import allure
+import pytest
 from datetime import datetime, timedelta
 
 from app.db.models import OperationLog
+
+pytestmark = [
+    pytest.mark.api,
+    pytest.mark.integration,
+    allure.feature("Operation Log"),
+    allure.story("Operation log API"),
+]
 
 
 def activity_payload() -> dict:

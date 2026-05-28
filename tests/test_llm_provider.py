@@ -1,7 +1,15 @@
+import allure
 import pytest
 
 from app.agent.fake_llm import FakeLLMProvider
 from app.agent.llm_provider import get_llm_provider
+
+pytestmark = [
+    pytest.mark.unit,
+    pytest.mark.agent,
+    allure.feature("Agent Workflow"),
+    allure.story("LLM Provider"),
+]
 
 
 def test_default_llm_provider_is_fake(monkeypatch):

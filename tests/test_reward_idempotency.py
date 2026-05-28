@@ -1,4 +1,13 @@
+import allure
+import pytest
 from datetime import datetime, timedelta
+
+pytestmark = [
+    pytest.mark.api,
+    pytest.mark.regression,
+    allure.feature("Idempotency"),
+    allure.story("Reward idempotency"),
+]
 
 
 def activity_payload(**overrides) -> dict:

@@ -12,6 +12,7 @@
 - Day 4：掉落概率规则校验、Monte Carlo 模拟和保底规则提示。
 - Day 5：Agent 工作流、LLM Provider 架构、风险拦截和人工审核。
 - Day 6：Agent Review 持久化、统一操作审计日志和日志保留策略。
+- Day 7：pytest 自动化测试体系、coverage 覆盖率报告、Allure 测试报告和测试运行脚本。
 
 暂未实现 Agent、JMeter、Docker、CI 等后续功能。
 
@@ -80,6 +81,102 @@ python -m pytest -q
 ```bash
 python -m pytest --cov=app
 ```
+
+## Day 7 测试体系
+
+Day 7 将项目从“功能能跑”整理为“测试体系可展示”的状态，补充了 pytest markers、公共 fixtures、coverage 配置、Allure 标注、测试运行脚本和测试策略文档。
+
+测试策略文档：
+
+```text
+docs/testing_strategy.md
+```
+
+### 运行全部测试
+
+Windows:
+
+```powershell
+python -m pytest -q
+```
+
+或：
+
+```powershell
+.\scripts\run_tests.ps1
+```
+
+### 运行覆盖率
+
+```powershell
+python -m pytest --cov=app --cov-report=term-missing --cov-report=html
+```
+
+或：
+
+```powershell
+.\scripts\run_coverage.ps1
+```
+
+生成后打开：
+
+```text
+htmlcov/index.html
+```
+
+### 生成 Allure 报告
+
+```powershell
+python -m pytest --alluredir=reports/allure-results
+```
+
+如果本机已安装 Allure CLI：
+
+```powershell
+allure serve reports/allure-results
+```
+
+或：
+
+```powershell
+.\scripts\run_allure.ps1
+```
+
+`reports/allure-results/` 和 `reports/allure-report/` 已加入 `.gitignore`，不会提交实际报告文件。
+
+### pytest markers
+
+当前配置的测试分类：
+
+- `unit`：服务层 / 单元测试
+- `api`：接口测试
+- `integration`：跨模块流程测试
+- `regression`：回归场景测试
+- `agent`：Agent 工作流与 Guardrail 测试
+- `performance`：性能相关测试占位，不包含 JMeter
+
+示例：
+
+```powershell
+python -m pytest -m api
+python -m pytest -m agent
+```
+
+### 当前覆盖的核心风险
+
+- 重复请求不重复发奖
+- 奖池扣减与钱包增加一致
+- 活动状态非法流转被拦截
+- 概率配置边界错误被识别
+- 高风险 Agent 输出不会直接落库
+- 危险指令会被 Guardrail 拦截
+- pending review 持久化，不因服务 reload 丢失
+- OperationLog 记录关键操作留痕
+
+## 简历 Bullet 补充 4
+
+- 使用 pytest 构建覆盖活动配置、奖励领取、幂等校验、概率校验、Agent 风控与审计日志的自动化测试体系，结合 pytest-cov 输出覆盖率报告，并通过 Allure 生成可视化测试报告。
+- 设计接口层、服务层与集成回归测试，覆盖重复请求不重复发奖、奖池扣减一致性、高风险 Agent 审核、危险指令拦截和 OperationLog 留痕等核心质量风险。
 
 ## 活动配置模块
 

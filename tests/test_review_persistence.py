@@ -1,5 +1,16 @@
+import allure
+import pytest
+
 from app.agent.human_review import list_reviews
 from app.services import review_service
+
+pytestmark = [
+    pytest.mark.agent,
+    pytest.mark.integration,
+    pytest.mark.regression,
+    allure.feature("Human Review"),
+    allure.story("Persistent review queue"),
+]
 
 HIGH_BUDGET_REQUIREMENT = "创建周末活动，金币预算2000000，掉率20%，每天最多领取3次"
 HIGH_RATE_REQUIREMENT = "创建周末活动，金币预算1000000，掉率60%，每天最多领取3次"

@@ -1,7 +1,15 @@
+import allure
 import pytest
 
 from app.core.exceptions import AppException
 from app.agent.graph import AgentWorkflow
+
+pytestmark = [
+    pytest.mark.agent,
+    pytest.mark.regression,
+    allure.feature("Guardrail"),
+    allure.story("Dangerous instruction rejection"),
+]
 
 
 def test_empty_requirement_returns_business_error(client):

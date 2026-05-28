@@ -1,7 +1,14 @@
+import allure
 import pytest
 
 from app.core.exceptions import AppException
 from app.services.probability_service import ProbabilityService
+
+pytestmark = [
+    pytest.mark.unit,
+    allure.feature("Probability Validation"),
+    allure.story("Probability service"),
+]
 
 
 @pytest.fixture()

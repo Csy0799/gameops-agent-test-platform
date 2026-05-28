@@ -1,4 +1,13 @@
+import allure
+import pytest
 from datetime import datetime, timedelta
+
+pytestmark = [
+    pytest.mark.api,
+    pytest.mark.integration,
+    allure.feature("Reward Claim"),
+    allure.story("Reward API"),
+]
 
 
 def activity_payload(**overrides) -> dict:

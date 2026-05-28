@@ -1,4 +1,13 @@
+import allure
+import pytest
 from copy import deepcopy
+
+pytestmark = [
+    pytest.mark.api,
+    pytest.mark.regression,
+    allure.feature("Activity Management"),
+    allure.story("Activity API"),
+]
 
 
 def activity_payload() -> dict:

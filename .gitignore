@@ -62,6 +62,8 @@ local_settings.py
 db.sqlite3
 db.sqlite3-journal
 gameops.db
+test_gameops.db
+*.sqlite3
 
 # Flask stuff:
 instance/
@@ -223,3 +225,5 @@ __marimo__/
 # Allure reports
 reports/allure-results/
 reports/allure-report/
+reports/jmeter/
+*.jtl

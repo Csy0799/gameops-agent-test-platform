@@ -1,6 +1,16 @@
+import allure
+import pytest
+
 from app.agent.graph import AgentWorkflow
 from app.agent.human_review import list_reviews
 from app.agent.fake_llm import FakeLLMProvider
+
+pytestmark = [
+    pytest.mark.agent,
+    pytest.mark.integration,
+    allure.feature("Agent Workflow"),
+    allure.story("Workflow generation"),
+]
 
 
 NORMAL_REQUIREMENT = "创建一个周末世界Boss活动，掉落概率20%，每人每天最多领取3次，总金币预算1000000"

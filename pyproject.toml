@@ -22,8 +22,29 @@ dependencies = [
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "-q"
+addopts = "-q -p no:cacheprovider"
 pythonpath = ["."]
+markers = [
+    "unit: unit/service level tests",
+    "api: API endpoint tests",
+    "integration: integration workflow tests",
+    "regression: regression suite tests",
+    "agent: Agent workflow and guardrail tests",
+    "performance: performance-related tests, not JMeter",
+]
 
 [tool.setuptools.packages.find]
 include = ["app*"]
+
+[tool.coverage.run]
+source = ["app"]
+omit = [
+    "tests/*",
+    "*/__pycache__/*",
+    ".venv/*",
+    "venv/*",
+]
+
+[tool.coverage.report]
+show_missing = true
+fail_under = 60
