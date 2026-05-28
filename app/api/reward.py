@@ -9,7 +9,7 @@ from app.schemas.reward import (
     RewardRecordResponse,
     WalletResponse,
 )
-from app.services import reward_service
+from app.services import operation_log_service, reward_service
 
 router = APIRouter(tags=["rewards"])
 
@@ -28,7 +28,19 @@ def claim_reward(
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
     result = reward_service.claim_reward(db, claim_in)
-    return success_response(result.model_dump(mode="json"))
+    data = result.model_dump(mode="json")
+    operation_log_service.log_operation(
+        db,
+        operation_type="reward.claim.duplicate"
+        if result.duplicated
+        else "reward.claim",
+        target_type="reward",
+        target_id=result.idempotency_key,
+        request_data=claim_in.model_dump(mode="json"),
+        response_data=data,
+        status="success",
+    )
+    return success_response(data)
 
 
 @router.get("/api/users/{user_id}/wallet")

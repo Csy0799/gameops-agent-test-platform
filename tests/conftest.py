@@ -50,3 +50,25 @@ def client() -> Generator[TestClient, None, None]:
         app.dependency_overrides.clear()
         Base.metadata.drop_all(bind=test_engine)
         test_engine.dispose()
+
+
+@pytest.fixture()
+def db_session() -> Generator[Session, None, None]:
+    test_engine = create_engine(
+        "sqlite:///:memory:",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    TestingSessionLocal = sessionmaker(
+        autocommit=False,
+        autoflush=False,
+        bind=test_engine,
+    )
+    Base.metadata.create_all(bind=test_engine)
+    db = TestingSessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+        Base.metadata.drop_all(bind=test_engine)
+        test_engine.dispose()

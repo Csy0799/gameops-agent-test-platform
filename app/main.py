@@ -2,8 +2,9 @@ from typing import Any, Optional
 
 from fastapi import FastAPI
 
-from app.api.agent import router as agent_router
+from app.api.agent import admin_router, router as agent_router
 from app.api.activity import router as activity_router
+from app.api.operation_log import router as operation_log_router
 from app.api.probability import router as probability_router
 from app.api.reward import router as reward_router
 from app.core.config import get_settings
@@ -38,6 +39,8 @@ def create_app() -> FastAPI:
     app.include_router(reward_router)
     app.include_router(probability_router)
     app.include_router(agent_router)
+    app.include_router(operation_log_router)
+    app.include_router(admin_router)
 
     return app
 

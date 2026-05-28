@@ -8,6 +8,7 @@ from sqlalchemy import (
     ForeignKey,
     Integer,
     String,
+    Text,
 )
 from sqlalchemy.orm import declarative_base, relationship
 
@@ -76,3 +77,41 @@ class RewardRecord(Base):
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow, index=True)
 
     activity = relationship("Activity", back_populates="reward_records")
+
+
+class AgentReviewRecord(Base):
+    __tablename__ = "agent_review_records"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    review_id = Column(String(128), nullable=False, unique=True, index=True)
+    status = Column(String(32), nullable=False, default="pending", index=True)
+    reason = Column(String(512), nullable=False)
+    config_json = Column(Text, nullable=False)
+    probability_result_json = Column(Text, nullable=True)
+    activity_id = Column(Integer, ForeignKey("activities.id"), nullable=True, index=True)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = Column(
+        DateTime,
+        nullable=False,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
+    )
+    reviewed_at = Column(DateTime, nullable=True)
+
+    activity = relationship("Activity")
+
+
+class OperationLog(Base):
+    __tablename__ = "operation_logs"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    trace_id = Column(String(128), nullable=True, index=True)
+    actor = Column(String(128), nullable=False, default="system", index=True)
+    operation_type = Column(String(128), nullable=False, index=True)
+    target_type = Column(String(128), nullable=False, index=True)
+    target_id = Column(String(128), nullable=True, index=True)
+    request_json = Column(Text, nullable=True)
+    response_json = Column(Text, nullable=True)
+    status = Column(String(32), nullable=False, default="success", index=True)
+    message = Column(String(512), nullable=True)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow, index=True)

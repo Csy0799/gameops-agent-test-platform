@@ -2,7 +2,6 @@ from typing import Dict, Optional
 
 from sqlalchemy.orm import Session
 
-from app.agent.human_review import create_review
 from app.agent.llm_provider import BaseLLMProvider, get_llm_provider
 from app.agent.tools import (
     check_budget_risk,
@@ -13,6 +12,7 @@ from app.agent.tools import (
 )
 from app.core.exceptions import AppException
 from app.services.activity_service import create_activity
+from app.services.review_service import create_review
 
 
 class AgentWorkflow:
@@ -39,6 +39,7 @@ class AgentWorkflow:
 
         if high_risk:
             review_id = create_review(
+                db=db,
                 config=activity_in.model_dump(),
                 reason="high risk activity requires human review",
                 probability_result=probability_result,

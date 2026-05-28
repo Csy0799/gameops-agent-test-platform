@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.db.session import get_db
 from app.schemas.activity import ActivityCreate, ActivityListResponse, ActivityResponse
-from app.services import activity_service
+from app.services import activity_service, operation_log_service
 
 router = APIRouter(prefix="/api/activities", tags=["activities"])
 
@@ -28,7 +28,17 @@ def create_activity(
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
     activity = activity_service.create_activity(db, activity_in)
-    return success_response(to_activity_response(activity))
+    data = to_activity_response(activity)
+    operation_log_service.log_operation(
+        db,
+        operation_type="activity.create",
+        target_type="activity",
+        target_id=str(activity.id),
+        request_data=activity_in.model_dump(mode="json"),
+        response_data=data,
+        status="success",
+    )
+    return success_response(data)
 
 
 @router.get("/{activity_id}")
@@ -50,10 +60,28 @@ def list_activities(db: Session = Depends(get_db)) -> dict[str, Any]:
 @router.post("/{activity_id}/publish")
 def publish_activity(activity_id: int, db: Session = Depends(get_db)) -> dict[str, Any]:
     activity = activity_service.publish_activity(db, activity_id)
-    return success_response(to_activity_response(activity))
+    data = to_activity_response(activity)
+    operation_log_service.log_operation(
+        db,
+        operation_type="activity.publish",
+        target_type="activity",
+        target_id=str(activity.id),
+        response_data=data,
+        status="success",
+    )
+    return success_response(data)
 
 
 @router.post("/{activity_id}/rollback")
 def rollback_activity(activity_id: int, db: Session = Depends(get_db)) -> dict[str, Any]:
     activity = activity_service.rollback_activity(db, activity_id)
-    return success_response(to_activity_response(activity))
+    data = to_activity_response(activity)
+    operation_log_service.log_operation(
+        db,
+        operation_type="activity.rollback",
+        target_type="activity",
+        target_id=str(activity.id),
+        response_data=data,
+        status="success",
+    )
+    return success_response(data)

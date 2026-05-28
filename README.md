@@ -11,6 +11,7 @@
 - Day 3：奖励领取、用户钱包、奖励流水、幂等校验和 daily limit 校验。
 - Day 4：掉落概率规则校验、Monte Carlo 模拟和保底规则提示。
 - Day 5：Agent 工作流、LLM Provider 架构、风险拦截和人工审核。
+- Day 6：Agent Review 持久化、统一操作审计日志和日志保留策略。
 
 暂未实现 Agent、JMeter、Docker、CI 等后续功能。
 
@@ -332,3 +333,143 @@ curl -X POST http://127.0.0.1:8000/api/agent/review/review_xxx \
 - 设计可扩展 LLM Provider 架构，默认使用 FakeLLM 保证测试稳定，同时预留 OpenAI-compatible Provider 作为真实模型接入扩展点。
 - 实现运营活动 Agent 工作流，将自然语言需求转成活动配置，并串联规则校验、概率模拟、预算风控、危险指令拦截与人工审核。
 - 构建 Human-in-the-loop 审核机制，高风险配置进入 pending review，人工 approve 后才创建 draft 活动，避免高风险活动自动落库。
+
+## 操作审计与可追溯性
+
+Day 6 将 Agent pending review 从内存字典升级为数据库持久化记录，并新增统一 `OperationLog` 表。这样服务 reload 后，只要本地 SQLite 数据库文件没有删除，pending review 仍然可以查询和继续 approve / reject。
+
+### Review Queue 设计
+
+高风险 Agent 需求会进入 Review Queue。用户不需要复制或记住 `review_id`，可以通过 API 或管理页面查看所有待审核任务：
+
+```bash
+curl http://127.0.0.1:8000/api/agent/reviews
+```
+
+`GET /api/agent/reviews` 默认只返回 `pending` 记录：
+
+```json
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "items": [],
+    "total": 0
+  }
+}
+```
+
+支持的 `status`：
+
+- `pending`：默认值，只显示待审核任务
+- `approved`：只显示已通过记录
+- `rejected`：只显示已拒绝记录
+- `all`：显示全部记录
+
+Approve / Reject 后，记录不会删除，只会更新状态、写入 `reviewed_at`，并从默认 pending queue 中隐藏。后台数据库和 OperationLog 会长期保留操作留痕。
+
+### Agent Review 持久化
+
+`AgentReviewRecord` 用于保存高风险 Agent 配置审核记录：
+
+- `review_id`：审核单唯一标识
+- `status`：`pending` / `approved` / `rejected`
+- `config_json`：待审核活动配置
+- `probability_result_json`：概率模拟结果
+- `activity_id`：审核通过后创建的 draft activity
+- `created_at` / `updated_at` / `reviewed_at`：生命周期时间
+
+### OperationLog 表设计
+
+`OperationLog` 用于记录关键操作，便于追踪问题和复现缺陷：
+
+- `operation_type`：例如 `activity.create`、`reward.claim`、`agent.review.approve`
+- `target_type`：例如 `activity`、`reward`、`probability`、`agent_review`
+- `target_id`：活动 ID、review ID 或幂等 key
+- `actor`：默认 `system`，后续可扩展为用户、Agent 或 Unity 客户端
+- `status`：`success` / `failed` / `rejected` / `pending_review`
+- `message`：补充说明
+- `created_at`：记录时间
+
+已接入的关键操作：
+
+- 活动：创建、发布、回滚
+- 奖励：领取成功、重复幂等请求
+- 概率：概率校验
+- Agent：普通生成、pending review、危险指令拦截、approve、reject
+
+### 日志保留策略
+
+默认保留 365 天：
+
+```bash
+OPERATION_LOG_RETENTION_DAYS=365
+ENABLE_OPERATION_LOG=true
+```
+
+如果需要保留半年：
+
+```bash
+OPERATION_LOG_RETENTION_DAYS=180
+```
+
+关闭操作日志：
+
+```bash
+ENABLE_OPERATION_LOG=false
+```
+
+日志清理接口会删除超过保留天数的记录。日志写入失败不会阻断主业务流程。
+
+### Day 6 API
+
+- `GET /api/agent/reviews`：查询 review 列表，支持 `status` 和 `limit`
+- `GET /api/agent/reviews/{review_id}`：查询单个 review
+- `POST /api/agent/review/{review_id}`：审核 pending review，支持 `approve` / `reject`
+- `GET /admin/reviews`：简单 HTML 审核页面，默认展示 pending review
+- `GET /admin/reviews/history`：简单 HTML 历史页面，展示最近 approved / rejected 记录
+- `GET /api/operation-logs`：查询操作日志，支持 `operation_type`、`target_type`、`actor`、`limit`
+- `POST /api/operation-logs/cleanup`：按保留天数清理过期日志
+
+查询 pending review：
+
+```bash
+curl http://127.0.0.1:8000/api/agent/reviews?status=pending
+```
+
+打开审核页面：
+
+```bash
+http://127.0.0.1:8000/admin/reviews
+```
+
+页面会展示所有 pending review，包括 `review_id`、审核原因、活动名称、金币奖池、钻石奖池、掉率、daily limit、风险等级、概率模拟是否通过和创建时间。点击 Approve 或 Reject 后，会调用审核 API 并刷新页面。
+
+查询操作日志：
+
+```bash
+curl http://127.0.0.1:8000/api/operation-logs?operation_type=agent.review.pending
+```
+
+清理过期日志：
+
+```bash
+curl -X POST http://127.0.0.1:8000/api/operation-logs/cleanup \
+  -H "Content-Type: application/json" \
+  -d '{
+    "retention_days": 365
+  }'
+```
+
+### 为什么测试平台需要操作记录
+
+- 便于定位问题：快速找到某个活动、领奖或 Agent 决策的操作链路。
+- 便于复现缺陷：保留关键请求、响应摘要和状态。
+- 便于追踪 Agent 高风险决策：查看 pending review 的原因和审核结果。
+- 便于验证幂等和数据一致性：确认重复请求是否只记录为 `reward.claim.duplicate`，不会重复发奖。
+
+## 简历 Bullet 补充 3
+
+- 将 Agent pending review 从内存存储升级为数据库持久化审核记录，支持服务重启后继续查询、审批和拒绝高风险配置。
+- 设计统一 OperationLog 审计表，覆盖活动配置、奖励领取、概率校验、Agent 生成、风控拦截和人工审核等关键操作。
+- 实现日志保留策略与清理接口，支持通过环境变量配置保留天数，并通过 pytest 验证审计查询、过滤和过期清理逻辑。
